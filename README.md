@@ -12,12 +12,16 @@ learnstack/
 ├── backend/          FastAPI + SQLAlchemy (SQLite by default, Postgres-ready)
 │   ├── app/
 │   │   ├── models.py        Tenant, User, Curriculum→Module→Lesson(blocks), Enrollment, Certificate, MediaAsset
+│   │   ├── channels/
+│   │   │   ├── engine.py    channel-agnostic conversation state machine
+│   │   │   └── providers.py Meta WhatsApp / Africa's Talking / Twilio senders
 │   │   ├── routers/
 │   │   │   ├── auth.py      tenant-scoped register/login (JWT)
 │   │   │   ├── tenants.py   tenant CRUD + public branding endpoint
 │   │   │   ├── content.py   curriculum/module/lesson authoring + JSON import/export
 │   │   │   ├── media.py     video/audio/image/file uploads (local disk, S3-swappable)
-│   │   │   └── learning.py  catalog, enroll, lesson player, quiz grading, certificates
+│   │   │   ├── learning.py  catalog, enroll, lesson player, quiz grading, certificates
+│   │   │   └── channels.py  WhatsApp/SMS/USSD webhooks, config, simulator, drip
 │   │   └── ...
 │   └── scripts/
 │       ├── seed.py                 superadmin + demo tenant + sample course
@@ -97,6 +101,30 @@ venv\Scripts\python -m pytest tests/ -q
 
 Covers the full lifecycle (tenant → branding → authoring → enrollment →
 quiz → certificate → verification) and tenant isolation.
+
+## Messaging channels (WhatsApp / SMS / USSD)
+
+Every tenant can deliver its curricula conversationally — the MNAIR delivery
+model, generalized. One engine drives all channels; lesson blocks render per
+channel capability (WhatsApp gets real video/audio/image messages, SMS gets
+captioned links, USSD gets text-only for feature phones).
+
+1. Studio → **Messaging channels** (or `PUT /api/channels/config/{channel}`).
+   Providers: `meta` (WhatsApp Cloud API), `africastalking` (SMS + USSD),
+   `twilio` (SMS), `simulator` (no account needed — for testing).
+2. Point the provider webhook at your API with the tenant slug:
+   - WhatsApp: `POST /api/channels/whatsapp/webhook?tenant=<slug>` (GET serves
+     Meta's hub.challenge verification; set `verify_token` in credentials)
+   - SMS: `POST /api/channels/sms/webhook?tenant=<slug>`
+   - USSD: `POST /api/channels/ussd?tenant=<slug>` (Africa's Talking CON/END)
+3. Test any flow in the Studio's **conversation simulator** before connecting
+   a real provider: send "hi", pick a course, watch lessons/quizzes flow.
+4. Drip reminders: schedule `POST /api/channels/drip/run?tenant=<slug>` daily
+   (cron) to nudge idle learners with "Reply NEXT to continue."
+
+Learner commands on any channel: a course number to enroll, `NEXT`,
+`PROGRESS`, `MENU`, `HELP`. Set `LEARNSTACK_PUBLIC_BASE_URL` so media links
+in WhatsApp/SMS messages are absolute.
 
 ## Onboarding a new white-label customer
 

@@ -11,7 +11,9 @@ LearnStack is a multi-tenant SaaS platform that lets any organization launch a
 fully branded online academy in a day — their name, their logo, their colors,
 their domain — and deliver any curriculum through it: video, rich text, audio,
 documents, embeds, and graded quizzes, with enrollment tracking and verifiable
-certificates.
+certificates. Delivery is **multi-channel**: full-fidelity web, WhatsApp with
+real media messages, SMS, and USSD for feature phones — one lesson authored
+once, delivered everywhere a learner can be reached.
 
 The platform is production-derived, not speculative. It grew out of MNAIR
 (Make Nigeria AI Ready), a national AI literacy platform that delivered a
@@ -116,7 +118,32 @@ literacy program to a university short course. Two properties matter:
 - **Draft/publish lifecycle.** Curricula are invisible to learners until
   published; unpublishing is instant.
 
-### 4.4 Learn, prove, verify
+### 4.4 Multi-channel delivery: web, WhatsApp, SMS, USSD
+
+The same lesson, authored once, reaches learners wherever they are — this is
+the capability MNAIR proved nationally, now available to every tenant:
+
+- **Web**: full fidelity — embedded/uploaded video, audio, images, files,
+  interactive quizzes.
+- **WhatsApp** (Meta Cloud API): lessons arrive as conversation — text
+  messages plus **real video, audio, image, and document messages**, quizzes
+  answered by reply, certificates delivered with their verification code.
+- **SMS** (Africa's Talking or Twilio): text chunked to segment limits; media
+  degrades gracefully to a captioned link.
+- **USSD** (Africa's Talking `CON`/`END` sessions): text-only delivery for
+  feature phones with no data plan — the same curriculum, no smartphone
+  required.
+
+One conversation engine drives all three messaging channels per tenant:
+course menu → enroll → lesson delivery → quiz (graded server-side, same
+engine as the web) → progress → certificate. Each tenant connects its own
+provider credentials (or platform-shared numbers), keeping the white-label
+promise on the messaging side. A built-in **conversation simulator** in the
+Studio lets a tenant test every flow on every channel before connecting a
+provider account. Drip reminders nudge idle learners ("Reply NEXT to
+continue") on a cron cadence — MNAIR's 7-day program pattern as a feature.
+
+### 4.5 Learn, prove, verify
 
 Learners self-register inside a tenant, enroll, and progress lesson by lesson.
 Quizzes gate lesson completion where authors want them to. When a learner
@@ -135,6 +162,7 @@ made MNAIR credible to institutional partners.
 | Data | SQLAlchemy 2 — SQLite for dev, PostgreSQL in production | Zero-infrastructure trials, boring-reliable scale path |
 | Auth | JWT + PBKDF2 password hashing | Stateless, standard, no native-dependency headaches |
 | Media | Local disk per tenant, one-function swap to S3/GCS | Ship now, scale later without API changes |
+| Channels | One conversation engine; Meta Cloud API, Africa's Talking, Twilio adapters | Same lesson blocks render per channel capability |
 | Frontend | React + Vite + MUI, runtime-themed per tenant | One deploy serves every brand |
 | Packaging | Docker Compose (Postgres + API + nginx frontend) | Single-command production bring-up |
 
@@ -177,6 +205,7 @@ issued → certificate verifies — plus explicit cross-tenant isolation tests.
 | Multi-tenant operator model (run many academies) | ✅ | ❌ one brand per account | ❌ one install per org | Limited |
 | Curriculum portability (full JSON in/out) | ✅ | ❌ | Partial | ❌ |
 | Publicly verifiable certificates | ✅ | Add-on | Plugin | ✅ |
+| WhatsApp / SMS / USSD curriculum delivery | ✅ shipped | ❌ | ❌ | ❌ |
 | Ops burden on customer | None | None | High | None |
 | Low-bandwidth / multilingual heritage | ✅ (MNAIR) | ❌ | Neutral | ❌ |
 
@@ -215,25 +244,29 @@ Studio, seed tooling, and importer are specifically designed to compress.
 **Now (shipped):** multi-tenant white-labeling, block-based authoring with
 video, curriculum import/export, enrollments, server-side quiz grading,
 verifiable certificates, MNAIR importer, Docker deployment, lifecycle test
-suite.
+suite — **and multi-channel delivery: WhatsApp (with media messages), SMS,
+and USSD, with a per-channel simulator and drip reminders.** No incumbent
+LMS ships this; it is the wedge for the African market.
 
 **Next 90 days — first revenue:**
 - Billing integration (Paystack first — Nigerian market — then Stripe)
 - S3-compatible media storage and CDN delivery
-- Learner analytics per tenant (enrollment funnels, completion, quiz scores)
+- Learner analytics per tenant (enrollment funnels, completion, quiz scores,
+  per-channel engagement)
 - Custom-domain automation (today: one manual proxy rule per domain)
+- Hosted cron for drip cadences (today: tenant-triggered endpoint)
 
 **Two quarters — differentiation:**
-- **Channel delivery:** WhatsApp and SMS lesson delivery lifted from MNAIR —
-  no incumbent LMS ships this; it is the wedge for the African market
-- Drip scheduling and cohorts (the MNAIR "7-day program" pattern as a feature)
+- Cohorts and scheduled program starts (the MNAIR "7-day program" pattern,
+  full version)
 - Multi-language curriculum variants as a first-class concept
+- WhatsApp interactive buttons/lists for menus and quiz answers
 - AI-assisted authoring: draft a lesson's blocks and quiz from a source
   document
 
 **Four quarters — moat:**
-- USSD delivery for feature phones (proven demand from the MNAIR pilot)
 - SCORM/xAPI import for corporate migration deals
+- Voice/IVR channel for low-literacy audiences
 - Marketplace: tenants license curricula to each other, LearnStack takes a cut
 
 ---

@@ -25,6 +25,11 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
+    # Absolute origin used when channel messages must carry media links
+    # (WhatsApp media messages, SMS fallback links). Set to the public API
+    # domain in production.
+    public_base_url: str = "http://localhost:8000"
+
     class Config:
         env_file = ".env"
         env_prefix = "LEARNSTACK_"

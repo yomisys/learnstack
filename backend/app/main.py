@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, content, learning, media, tenants
+from app.routers import auth, channels, content, learning, media, tenants
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,6 +31,7 @@ app.include_router(tenants.router)
 app.include_router(content.router)
 app.include_router(media.router)
 app.include_router(learning.router)
+app.include_router(channels.router)
 
 app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 

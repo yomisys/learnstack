@@ -80,7 +80,12 @@ export default function Admin() {
 
   return (
     <Container sx={{ py: 4 }}>
-      <Typography variant="h4" fontWeight={700} gutterBottom>Studio</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" gutterBottom>
+        <Typography variant="h4" fontWeight={700}>Studio</Typography>
+        <Button variant="outlined" onClick={() => navigate('/admin/channels')}>
+          Messaging channels
+        </Button>
+      </Stack>
       <BrandingCard />
 
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>

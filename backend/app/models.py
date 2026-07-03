@@ -177,6 +177,58 @@ class Certificate(Base):
     curriculum: Mapped[Curriculum] = relationship()
 
 
+class Channel(str, Enum):
+    WHATSAPP = "whatsapp"
+    SMS = "sms"
+    USSD = "ussd"
+
+
+class ChannelConfig(Base):
+    """Per-tenant messaging channel configuration.
+
+    credentials by provider:
+      meta (whatsapp):      {"phone_number_id", "access_token", "verify_token"}
+      africastalking (sms/ussd): {"username", "api_key", "sender_id"}
+      twilio (sms):         {"account_sid", "auth_token", "from_number"}
+      simulator:            {} — replies are returned/collected, nothing sent
+    """
+    __tablename__ = "channel_configs"
+    __table_args__ = (UniqueConstraint("tenant_id", "channel", name="uq_channel_config"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(20))
+    provider: Mapped[str] = mapped_column(String(30), default="simulator")
+    credentials: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(default=True)
+
+    tenant: Mapped[Tenant] = relationship()
+
+
+class Conversation(Base):
+    """One learner's messaging session on one channel (state machine).
+
+    state: menu | lesson (content sent, awaiting NEXT) | quiz (awaiting answer)
+    data holds transient flow state: {"quiz_block_idx", "quiz_q_idx", "answers"}
+    """
+    __tablename__ = "conversations"
+    __table_args__ = (UniqueConstraint("tenant_id", "channel", "address", name="uq_conversation"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(20))
+    address: Mapped[str] = mapped_column(String(50), index=True)  # phone number
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    enrollment_id: Mapped[int | None] = mapped_column(ForeignKey("enrollments.id"), nullable=True)
+    lesson_id: Mapped[int | None] = mapped_column(ForeignKey("lessons.id"), nullable=True)
+    state: Mapped[str] = mapped_column(String(20), default="menu")
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user: Mapped[User | None] = relationship()
+    enrollment: Mapped[Enrollment | None] = relationship()
+
+
 class MediaAsset(Base):
     __tablename__ = "media_assets"
 
