@@ -172,3 +172,57 @@ def test_tenant_isolation():
     # rival's own catalog does not contain acme curricula
     r = client.get("/api/learn/catalog", params={"tenant": "rival"})
     assert r.json() == []
+
+
+def test_tenant_analytics():
+    """Tenant admin reporting: "how many of our people enrolled/finished."
+    Builds on the acme tenant state left behind by test_full_lifecycle
+    (one learner, one curriculum, one completed enrollment)."""
+    r = client.post("/api/auth/login", params={"tenant": "acme"},
+                    json={"email": "admin@acme.test", "password": "adminpass123"})
+    assert r.status_code == 200, r.text
+    admin_token = r.json()["access_token"]
+
+    # -- summary reflects the one learner who enrolled and completed --
+    r = client.get("/api/analytics/summary", params={"tenant": "acme"}, headers=auth(admin_token))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["total_learners"] == 1
+    assert body["total_enrollments"] == 1
+    assert body["completed_enrollments"] == 1
+    assert body["completion_rate"] == 100.0
+    assert len(body["by_curriculum"]) == 1
+    assert body["by_curriculum"][0]["curriculum_title"] == "Safety 101"
+    assert body["by_curriculum"][0]["enrolled"] == 1
+    assert body["by_curriculum"][0]["completed"] == 1
+
+    # -- roster names the actual person and their progress --
+    r = client.get("/api/analytics/learners", params={"tenant": "acme"}, headers=auth(admin_token))
+    assert r.status_code == 200, r.text
+    roster = r.json()
+    assert len(roster) == 1
+    entry = roster[0]
+    assert entry["full_name"] == "Ada Learner"
+    assert entry["email"] == "learner@example.com"
+    assert entry["curriculum_title"] == "Safety 101"
+    assert entry["completed_at"] is not None
+    assert entry["lessons_completed"] == 2
+    assert entry["lessons_total"] == 2
+
+    # -- a learner cannot see the roster (PII), only admin/superadmin can --
+    r = client.post("/api/auth/login", params={"tenant": "acme"},
+                    json={"email": "learner@example.com", "password": "learnerpass1"})
+    learner_token = r.json()["access_token"]
+    r = client.get("/api/analytics/summary", params={"tenant": "acme"}, headers=auth(learner_token))
+    assert r.status_code == 403
+
+    # -- a rival tenant admin cannot see acme's learners (tenant isolation) --
+    r = client.post("/api/auth/login", params={"tenant": "rival"},
+                    json={"email": "admin@rival.test", "password": "rivalpass123"})
+    rival_token = r.json()["access_token"]
+    r = client.get("/api/analytics/learners", params={"tenant": "acme"}, headers=auth(rival_token))
+    assert r.status_code == 403
+
+    r = client.get("/api/analytics/summary", params={"tenant": "rival"}, headers=auth(rival_token))
+    assert r.status_code == 200
+    assert r.json()["total_learners"] == 0

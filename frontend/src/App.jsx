@@ -4,6 +4,7 @@ import { useAuth } from './auth'
 import { useBranding } from './branding'
 import NavBar from './components/NavBar'
 import Admin from './pages/Admin'
+import Analytics from './pages/Analytics'
 import Catalog from './pages/Catalog'
 import Channels from './pages/Channels'
 import Course from './pages/Course'
@@ -14,11 +15,12 @@ import Login from './pages/Login'
 import MyLearning from './pages/MyLearning'
 import Verify from './pages/Verify'
 
-function RequireAuth({ children, author = false }) {
-  const { user, loading, canAuthor } = useAuth()
+function RequireAuth({ children, author = false, manager = false }) {
+  const { user, loading, canAuthor, canManageTenant } = useAuth()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
   if (author && !canAuthor) return <Navigate to="/" replace />
+  if (manager && !canManageTenant) return <Navigate to="/" replace />
   return children
 }
 
@@ -36,6 +38,7 @@ export default function App() {
           <Route path="/lesson/:id" element={<RequireAuth><LessonPlayer /></RequireAuth>} />
           <Route path="/my" element={<RequireAuth><MyLearning /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth author><Admin /></RequireAuth>} />
+          <Route path="/admin/analytics" element={<RequireAuth manager><Analytics /></RequireAuth>} />
           <Route path="/admin/channels" element={<RequireAuth author><Channels /></RequireAuth>} />
           <Route path="/admin/curriculum/:id" element={<RequireAuth author><CurriculumEditor /></RequireAuth>} />
           <Route path="/admin/lesson/:id" element={<RequireAuth author><LessonEditor /></RequireAuth>} />

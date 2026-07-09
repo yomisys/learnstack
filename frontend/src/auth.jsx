@@ -38,9 +38,13 @@ export function AuthProvider({ children }) {
   }
 
   const canAuthor = user && ['superadmin', 'admin', 'instructor'].includes(user.role)
+  // Matches the backend's require_roles(SUPERADMIN, ADMIN) gate on
+  // /api/analytics/* — narrower than canAuthor because analytics exposes
+  // learner names/emails, which instructors don't otherwise see.
+  const canManageTenant = user && ['superadmin', 'admin'].includes(user.role)
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, canAuthor }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, canAuthor, canManageTenant }}>
       {children}
     </AuthContext.Provider>
   )

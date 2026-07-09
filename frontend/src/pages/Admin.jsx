@@ -7,6 +7,7 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, errText } from '../api'
+import { useAuth } from '../auth'
 
 function BrandingCard() {
   const [branding, setBranding] = useState(null)
@@ -61,6 +62,7 @@ export default function Admin() {
   const [form, setForm] = useState({ slug: '', title: '', description: '' })
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { canManageTenant } = useAuth()
 
   const load = useCallback(() => {
     api.get('/api/content/curricula').then((r) => setCurricula(r.data)).catch((e) => setError(errText(e)))
@@ -82,9 +84,16 @@ export default function Admin() {
     <Container sx={{ py: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" gutterBottom>
         <Typography variant="h4" fontWeight={700}>Studio</Typography>
-        <Button variant="outlined" onClick={() => navigate('/admin/channels')}>
-          Messaging channels
-        </Button>
+        <Stack direction="row" spacing={2}>
+          {canManageTenant && (
+            <Button variant="outlined" onClick={() => navigate('/admin/analytics')}>
+              Analytics
+            </Button>
+          )}
+          <Button variant="outlined" onClick={() => navigate('/admin/channels')}>
+            Messaging channels
+          </Button>
+        </Stack>
       </Stack>
       <BrandingCard />
 

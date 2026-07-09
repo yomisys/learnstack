@@ -216,3 +216,32 @@ class CertificateOut(BaseModel):
     curriculum_title: str
     learner_name: str
     tenant_name: str
+
+
+# ---- analytics (tenant admin: "how many of our people participated") ----
+class CurriculumAnalytics(BaseModel):
+    curriculum_id: int
+    curriculum_title: str
+    enrolled: int
+    completed: int
+    completion_rate: float
+
+
+class TenantAnalyticsOut(BaseModel):
+    total_learners: int
+    total_enrollments: int
+    completed_enrollments: int
+    completion_rate: float
+    by_curriculum: list[CurriculumAnalytics]
+
+
+class LearnerRosterEntry(BaseModel):
+    user_id: int
+    email: str
+    full_name: str
+    curriculum_id: int
+    curriculum_title: str
+    enrolled_at: datetime
+    completed_at: datetime | None
+    lessons_completed: int
+    lessons_total: int
