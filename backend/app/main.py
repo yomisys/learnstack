@@ -5,11 +5,13 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import settings
-from app.database import Base, engine
 from app.ratelimit import limiter
 from app.routers import analytics, auth, channels, content, learning, media, tenants
 
-Base.metadata.create_all(bind=engine)
+# Schema is owned by Alembic now (see alembic/), not create_all() — the
+# Docker image runs `alembic upgrade head` before starting this app. For
+# bare-metal local dev without Docker, run that once yourself:
+#   cd backend && alembic upgrade head
 
 app = FastAPI(
     title="LearnStack — White-label Curriculum Delivery Platform",

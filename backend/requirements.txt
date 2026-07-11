@@ -12,3 +12,5 @@ pytest>=8.0
 reportlab>=4.0
 minio>=7.2
 slowapi>=0.1.9
+alembic>=1.13
+psycopg[binary]>=3.1
