@@ -18,10 +18,16 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24
 
-    # Local media storage root. Swap for an S3-backed implementation by
-    # replacing app/routers/media.py storage helpers.
-    media_root: Path = BASE_DIR / "uploads"
     max_upload_mb: int = 500
+
+    # Object storage (MinIO / any S3-compatible endpoint) for uploaded
+    # lesson media. Media no longer lives on local disk, so it survives a
+    # container redeploy — see app/storage.py.
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "learnstack"
+    minio_secret_key: str = "learnstack-dev-secret"
+    minio_bucket: str = "learnstack-media"
+    minio_secure: bool = False
 
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
@@ -41,4 +47,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-settings.media_root.mkdir(parents=True, exist_ok=True)

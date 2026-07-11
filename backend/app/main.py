@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
@@ -30,11 +29,10 @@ app.include_router(auth.router)
 app.include_router(tenants.router)
 app.include_router(content.router)
 app.include_router(media.router)
+app.include_router(media.public_router)
 app.include_router(learning.router)
 app.include_router(channels.router)
 app.include_router(analytics.router)
-
-app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 
 
 @app.get("/health")

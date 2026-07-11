@@ -12,18 +12,35 @@ services:
       interval: 5s
       retries: 10
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${LEARNSTACK_MINIO_ACCESS_KEY:-learnstack}
+      MINIO_ROOT_PASSWORD: ${LEARNSTACK_MINIO_SECRET_KEY:-learnstack-dev-secret}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      retries: 10
+
   api:
     build: ./backend
     environment:
       LEARNSTACK_DATABASE_URL: postgresql+psycopg://learnstack:learnstack@db:5432/learnstack
       LEARNSTACK_JWT_SECRET: ${LEARNSTACK_JWT_SECRET:-change-me}
       LEARNSTACK_CORS_ORIGINS: http://localhost:3000
-    volumes:
-      - media:/app/uploads
+      LEARNSTACK_MINIO_ENDPOINT: minio:9000
+      LEARNSTACK_MINIO_ACCESS_KEY: ${LEARNSTACK_MINIO_ACCESS_KEY:-learnstack}
+      LEARNSTACK_MINIO_SECRET_KEY: ${LEARNSTACK_MINIO_SECRET_KEY:-learnstack-dev-secret}
+      LEARNSTACK_MINIO_BUCKET: learnstack-media
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   frontend:
@@ -35,4 +52,4 @@ services:
 
 volumes:
   pgdata:
-  media:
+  minio_data:

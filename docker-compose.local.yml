@@ -10,3 +10,12 @@ services:
   frontend:
     ports: !override
       - "3020:80"
+
+  # Published locally only for debugging (console at :9031). 9020/9021 are
+  # already used by the MNAIR stack's own MinIO on this machine, so this
+  # uses 9030/9031 instead. The api container reaches MinIO via the
+  # internal docker network regardless of what's published to the host.
+  minio:
+    ports:
+      - "9030:9000"
+      - "9031:9001"
