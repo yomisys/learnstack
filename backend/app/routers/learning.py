@@ -4,15 +4,18 @@ import copy
 import secrets
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, selectinload
 
+from app.certificates import generate_certificate_pdf
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, get_tenant
 from app.models import (Certificate, Curriculum, CurriculumStatus, Enrollment,
                         Lesson, LessonProgress, Module, Tenant, User)
-from app.schemas import (CertificateOut, CurriculumOut, EnrollmentOut,
-                         QuizResult, QuizSubmission)
+from app.schemas import (CertificateOut, CertificateVerification, CurriculumOut,
+                         EnrollmentOut, QuizResult, QuizSubmission)
 
 router = APIRouter(prefix="/api/learn", tags=["learning"])
 
@@ -198,13 +201,54 @@ def my_certificates(tenant: Tenant = Depends(get_tenant),
             for c in certs]
 
 
-@router.get("/certificates/verify/{code}", response_model=CertificateOut)
-def verify_certificate(code: str, db: Session = Depends(get_db)):
-    """Public verification endpoint — works across all tenants."""
-    cert = db.query(Certificate).filter(Certificate.code == code.upper()).first()
+@router.get("/certificates/{code}/pdf")
+def download_certificate_pdf(code: str, tenant: Tenant = Depends(get_tenant),
+                             user: User = Depends(get_current_user),
+                             db: Session = Depends(get_db)):
+    """Stream a freshly-rendered certificate PDF. Owner-only — a learner
+    can only download their own certificate, never anyone else's."""
+    cert = (db.query(Certificate)
+            .filter(Certificate.code == code.upper(), Certificate.user_id == user.id,
+                    Certificate.tenant_id == tenant.id)
+            .first())
     if not cert:
         raise HTTPException(404, "Certificate not found")
-    return CertificateOut(code=cert.code, issued_at=cert.issued_at,
-                          curriculum_title=cert.curriculum.title,
-                          learner_name=cert.user.full_name or cert.user.email,
-                          tenant_name=cert.curriculum.tenant.name)
+    pdf_bytes = generate_certificate_pdf(
+        learner_name=user.full_name or user.email,
+        curriculum_title=cert.curriculum.title,
+        tenant_name=tenant.name,
+        branding=tenant.effective_branding(),
+        code=cert.code,
+        issued_at=cert.issued_at,
+        frontend_url=settings.frontend_url,
+    )
+    return Response(
+        content=pdf_bytes, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="certificate-{cert.code}.pdf"'},
+    )
+
+
+def _normalize_name(name: str) -> str:
+    return " ".join(name.casefold().split())
+
+
+@router.get("/certificates/verify/{code}", response_model=CertificateVerification)
+def verify_certificate(code: str,
+                       name: str = Query(..., min_length=2, max_length=255),
+                       db: Session = Depends(get_db)):
+    """Public verification endpoint — works across all tenants.
+
+    Requires the learner's name as well as the code, and returns an
+    identical 404 whether the code doesn't exist or the name doesn't match
+    it — so the endpoint can't be used to look up who a code belongs to.
+    """
+    cert = db.query(Certificate).filter(Certificate.code == code.upper()).first()
+    not_found = HTTPException(404, "Certificate not found or name does not match")
+    if not cert:
+        raise not_found
+    holder_name = cert.user.full_name or cert.user.email
+    if _normalize_name(holder_name) != _normalize_name(name):
+        raise not_found
+    return CertificateVerification(code=cert.code, issued_at=cert.issued_at,
+                                   curriculum_title=cert.curriculum.title,
+                                   tenant_name=cert.curriculum.tenant.name)

@@ -5,8 +5,9 @@ from app.database import get_db
 from app.deps import (check_tenant_access, get_current_user, get_tenant,
                       require_roles, require_superadmin)
 from app.models import Tenant, User, UserRole
-from app.schemas import BrandingOut, TenantIn, TenantOut, TenantUpdate
-from app.security import hash_password
+from app.schemas import (BrandingOut, TenantIn, TenantOut, TenantSignupIn,
+                         TenantUpdate, TokenOut, UserOut)
+from app.security import create_access_token, hash_password
 
 router = APIRouter(prefix="/api/tenants", tags=["tenants"])
 
@@ -15,6 +16,28 @@ router = APIRouter(prefix="/api/tenants", tags=["tenants"])
 def public_branding(tenant: Tenant = Depends(get_tenant)):
     """Unauthenticated: the white-label frontend fetches this on boot to theme itself."""
     return BrandingOut(tenant=tenant.slug, name=tenant.name, branding=tenant.effective_branding())
+
+
+@router.post("/signup", response_model=TokenOut)
+def signup(body: TenantSignupIn, db: Session = Depends(get_db)):
+    """Public, self-serve: a group creates its own organization and its
+    first admin account together, and is logged straight in. No invite or
+    superadmin approval required — this is the onboarding path for a
+    church/school/business standing up their own instance."""
+    if db.query(Tenant).filter(Tenant.slug == body.slug).first():
+        raise HTTPException(409, f"That organization URL ('{body.slug}') is already taken")
+    tenant = Tenant(slug=body.slug, name=body.org_name)
+    db.add(tenant)
+    db.flush()
+    admin = User(
+        tenant_id=tenant.id, email=body.admin_email.lower(),
+        password_hash=hash_password(body.admin_password),
+        full_name=body.admin_full_name, role=UserRole.ADMIN.value,
+    )
+    db.add(admin)
+    db.commit()
+    token = create_access_token(admin.id, admin.tenant_id, admin.role)
+    return TokenOut(access_token=token, user=UserOut.model_validate(admin))
 
 
 @router.get("", response_model=list[TenantOut], dependencies=[Depends(require_superadmin)])

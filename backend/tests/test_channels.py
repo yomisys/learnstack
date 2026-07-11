@@ -109,12 +109,15 @@ def test_whatsapp_full_conversation():
     assert "Congratulations" in joined
     assert "certificate code" in joined.lower()
 
-    # the certificate is real and publicly verifiable
+    # the certificate is real and publicly verifiable (channel-registered
+    # users have no separate name capture, so their phone number is the
+    # full_name on record — see channels/engine.py)
     code = next(word for word in joined.replace("\n", " ").split()
                 if len(word) == 16 and word.isalnum() and word.isupper())
-    r = client.get(f"/api/learn/certificates/verify/{code}")
+    r = client.get(f"/api/learn/certificates/verify/{code}", params={"name": PHONE})
     assert r.status_code == 200
     assert r.json()["curriculum_title"] == "Field Course"
+    assert "learner_name" not in r.json()
 
     # PROGRESS reflects completion
     replies = sim(headers, "progress")

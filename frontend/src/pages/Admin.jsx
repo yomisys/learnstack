@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 import {
   Alert, Box, Button, Card, CardContent, Chip, Container, Dialog,
   DialogActions, DialogContent, DialogTitle, Grid, Stack, TextField,
@@ -61,6 +62,7 @@ export default function Admin() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ slug: '', title: '', description: '' })
   const [error, setError] = useState('')
+  const [importing, setImporting] = useState(false)
   const navigate = useNavigate()
   const { canManageTenant } = useAuth()
 
@@ -77,6 +79,29 @@ export default function Admin() {
       navigate(`/admin/curriculum/${r.data.id}`)
     } catch (e) {
       setError(errText(e))
+    }
+  }
+
+  const importJson = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file next time
+    if (!file) return
+    setError('')
+    setImporting(true)
+    try {
+      const text = await file.text()
+      let parsed
+      try {
+        parsed = JSON.parse(text)
+      } catch {
+        throw new Error(`"${file.name}" is not valid JSON.`)
+      }
+      const r = await api.post('/api/content/curricula/import', parsed)
+      navigate(`/admin/curriculum/${r.data.id}`)
+    } catch (e) {
+      setError(e.response ? errText(e) : e.message)
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -99,9 +124,15 @@ export default function Admin() {
 
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Curricula</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
-          New curriculum
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} disabled={importing}>
+            {importing ? 'Importing…' : 'Import JSON'}
+            <input hidden type="file" accept="application/json,.json" onChange={importJson} />
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
+            New curriculum
+          </Button>
+        </Stack>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Grid container spacing={2}>

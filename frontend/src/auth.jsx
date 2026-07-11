@@ -32,6 +32,16 @@ export function AuthProvider({ children }) {
     handleToken(r.data)
   }
 
+  // Org signup returns a token like login/register, but for a brand-new
+  // tenant — the caller is responsible for switching TENANT (api.js reads
+  // it from localStorage at module load, so this needs a hard navigation,
+  // not just handleToken + client-side route change).
+  const signupOrg = async (body) => {
+    const r = await api.post('/api/tenants/signup', body)
+    localStorage.setItem('token', r.data.access_token)
+    return r.data
+  }
+
   const logout = () => {
     localStorage.removeItem('token')
     setUser(null)
@@ -44,7 +54,8 @@ export function AuthProvider({ children }) {
   const canManageTenant = user && ['superadmin', 'admin'].includes(user.role)
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, canAuthor, canManageTenant }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, signupOrg, logout, canAuthor, canManageTenant }}>
       {children}
     </AuthContext.Provider>
   )

@@ -72,6 +72,16 @@ class TenantIn(BaseModel):
     branding: dict[str, Any] = Field(default_factory=dict)
 
 
+class TenantSignupIn(BaseModel):
+    """Public, unauthenticated: a group creates its own organization and
+    its first admin account in one step."""
+    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,58}$")
+    org_name: str = Field(min_length=1, max_length=200)
+    admin_full_name: str = Field(min_length=1, max_length=200)
+    admin_email: EmailStr
+    admin_password: str = Field(min_length=8)
+
+
 class TenantUpdate(BaseModel):
     name: str | None = None
     branding: dict[str, Any] | None = None
@@ -215,6 +225,19 @@ class CertificateOut(BaseModel):
     issued_at: datetime
     curriculum_title: str
     learner_name: str
+    tenant_name: str
+
+
+class CertificateVerification(BaseModel):
+    """Public verify response — deliberately omits learner_name.
+
+    The verify endpoint requires the caller to already know the name (it's
+    used only to authorize the lookup); echoing it back would let anyone
+    with just a code harvest a learner's identity.
+    """
+    code: str
+    issued_at: datetime
+    curriculum_title: str
     tenant_name: str
 
 

@@ -2,7 +2,7 @@ import {
   Alert, Box, Button, Card, CardContent, Stack, Tab, Tabs, TextField, Typography,
 } from '@mui/material'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { errText } from '../api'
 import { useAuth } from '../auth'
 import { useBranding } from '../branding'
@@ -64,6 +64,10 @@ export default function Login() {
               <Button type="submit" variant="contained" size="large" disabled={busy}>
                 {tab === 0 ? 'Sign in' : 'Create account'}
               </Button>
+              <Typography variant="body2" align="center" color="text.secondary">
+                Setting up for a church, school, or business?{' '}
+                <RouterLink to="/signup">Create an organization</RouterLink>
+              </Typography>
             </Stack>
           </form>
         </CardContent>

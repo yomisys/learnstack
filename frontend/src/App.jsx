@@ -13,6 +13,7 @@ import LessonEditor from './pages/LessonEditor'
 import LessonPlayer from './pages/LessonPlayer'
 import Login from './pages/Login'
 import MyLearning from './pages/MyLearning'
+import Signup from './pages/Signup'
 import Verify from './pages/Verify'
 
 function RequireAuth({ children, author = false, manager = false }) {
@@ -33,6 +34,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/course/:id" element={<Course />} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/lesson/:id" element={<RequireAuth><LessonPlayer /></RequireAuth>} />

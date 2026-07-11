@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # domain in production.
     public_base_url: str = "http://localhost:8000"
 
+    # Absolute origin of the frontend — printed on certificate PDFs as the
+    # "verify this certificate at" link. Set to the public web domain in
+    # production.
+    frontend_url: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
         env_prefix = "LEARNSTACK_"

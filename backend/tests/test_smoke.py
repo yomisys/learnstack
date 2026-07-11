@@ -144,10 +144,36 @@ def test_full_lifecycle():
     assert r.status_code == 200
     certs = r.json()
     assert len(certs) == 1
-    r = client.get(f"/api/learn/certificates/verify/{certs[0]['code']}")
+    r = client.get(f"/api/learn/certificates/verify/{certs[0]['code']}",
+                   params={"name": "Ada Learner"})
     assert r.status_code == 200
-    assert r.json()["learner_name"] == "Ada Learner"
+    assert "learner_name" not in r.json()
     assert r.json()["tenant_name"] == "Acme Learning"
+
+    # -- verify requires the right name, not just a valid code --
+    r = client.get(f"/api/learn/certificates/verify/{certs[0]['code']}",
+                   params={"name": "Wrong Name"})
+    assert r.status_code == 404
+
+    # -- and an unknown code 404s identically, so the endpoint can't be
+    #    used to distinguish "bad code" from "right code, wrong name" --
+    r = client.get("/api/learn/certificates/verify/DEADBEEF00000000",
+                   params={"name": "Ada Learner"})
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Certificate not found or name does not match"
+
+    # -- the owner can download a real PDF of their own certificate --
+    r = client.get(f"/api/learn/certificates/{certs[0]['code']}/pdf",
+                   params={"tenant": "acme"}, headers=auth(learner_token))
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.content.startswith(b"%PDF")
+    assert len(r.content) > 1000  # a real rendered certificate, not a stub
+
+    # -- but nobody else can, including another user in the same tenant --
+    r = client.get(f"/api/learn/certificates/{certs[0]['code']}/pdf",
+                   params={"tenant": "acme"}, headers=auth(admin_token))
+    assert r.status_code == 404
 
 
 def test_tenant_isolation():
@@ -208,6 +234,44 @@ def test_tenant_analytics():
     assert entry["completed_at"] is not None
     assert entry["lessons_completed"] == 2
     assert entry["lessons_total"] == 2
+
+
+def test_self_serve_tenant_signup():
+    """A group (church/school/business) creates its own organization and
+    admin account in one public, unauthenticated call, and can act as an
+    admin of that tenant immediately — no superadmin or invite required."""
+    r = client.post("/api/tenants/signup", json={
+        "slug": "riverside-church", "org_name": "Riverside Church",
+        "admin_full_name": "Pastor Grace", "admin_email": "grace@riverside.example.com",
+        "admin_password": "riversidepass1",
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["user"]["role"] == "admin"
+    assert body["user"]["email"] == "grace@riverside.example.com"
+    token = body["access_token"]
+
+    # the returned token works immediately, scoped to the new tenant
+    r = client.get("/api/auth/me", params={"tenant": "riverside-church"}, headers=auth(token))
+    assert r.status_code == 200
+    assert r.json()["role"] == "admin"
+
+    # and can author content — the whole point of "admin"
+    r = client.post("/api/content/curricula", params={"tenant": "riverside-church"},
+                    headers=auth(token), json={"slug": "welcome", "title": "Welcome Series"})
+    assert r.status_code == 200, r.text
+
+    # a second org can't take an already-claimed URL
+    r = client.post("/api/tenants/signup", json={
+        "slug": "riverside-church", "org_name": "Copycat Church",
+        "admin_full_name": "Someone Else", "admin_email": "someone@copycat.example.com",
+        "admin_password": "differentpass1",
+    })
+    assert r.status_code == 409
+
+    # it does NOT grant superadmin or cross-tenant access
+    r = client.get("/api/content/curricula", params={"tenant": "acme"}, headers=auth(token))
+    assert r.status_code == 403
 
     # -- a learner cannot see the roster (PII), only admin/superadmin can --
     r = client.post("/api/auth/login", params={"tenant": "acme"},
