@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user, get_tenant
 from app.models import Tenant, User, UserRole
+from app.ratelimit import limiter
 from app.schemas import LoginIn, RegisterIn, TokenOut, UserOut
 from app.security import create_access_token, hash_password, verify_password
 
@@ -31,8 +32,14 @@ def register(body: RegisterIn, tenant: Tenant = Depends(get_tenant), db: Session
 
 
 @router.post("/login", response_model=TokenOut)
-def login(body: LoginIn, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
-    """Tenant-scoped login. Superadmins (tenant_id NULL) may log in via any tenant."""
+@limiter.limit("30/minute")
+def login(request: Request, body: LoginIn, tenant: Tenant = Depends(get_tenant),
+          db: Session = Depends(get_db)):
+    """Tenant-scoped login. Superadmins (tenant_id NULL) may log in via any tenant.
+
+    Rate-limited per IP as basic brute-force protection — 30/min is loose
+    enough for normal retry-after-typo use but slows down automated
+    password guessing."""
     email = body.email.lower()
     user = db.query(User).filter(User.tenant_id == tenant.id, User.email == email).first()
     if not user:

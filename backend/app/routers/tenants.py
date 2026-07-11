@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import (check_tenant_access, get_current_user, get_tenant,
                       require_roles, require_superadmin)
 from app.models import Tenant, User, UserRole
+from app.ratelimit import limiter
 from app.schemas import (BrandingOut, TenantIn, TenantOut, TenantSignupIn,
                          TenantUpdate, TokenOut, UserOut)
 from app.security import create_access_token, hash_password
@@ -19,11 +20,18 @@ def public_branding(tenant: Tenant = Depends(get_tenant)):
 
 
 @router.post("/signup", response_model=TokenOut)
-def signup(body: TenantSignupIn, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def signup(request: Request, body: TenantSignupIn, db: Session = Depends(get_db)):
     """Public, self-serve: a group creates its own organization and its
     first admin account together, and is logged straight in. No invite or
     superadmin approval required — this is the onboarding path for a
-    church/school/business standing up their own instance."""
+    church/school/business standing up their own instance.
+
+    Rate-limited per IP: signup is unauthenticated and creates real
+    database rows (a tenant + a user), so it's the obvious target for
+    automated spam without a limit. This isn't a substitute for CAPTCHA
+    or email verification — just the cheap, dependency-free first line
+    of defense."""
     if db.query(Tenant).filter(Tenant.slug == body.slug).first():
         raise HTTPException(409, f"That organization URL ('{body.slug}') is already taken")
     tenant = Tenant(slug=body.slug, name=body.org_name)

@@ -290,3 +290,20 @@ def test_self_serve_tenant_signup():
     r = client.get("/api/analytics/summary", params={"tenant": "rival"}, headers=auth(rival_token))
     assert r.status_code == 200
     assert r.json()["total_learners"] == 0
+
+
+def test_signup_is_rate_limited():
+    """Signup is public and unauthenticated, so it's rate-limited per IP —
+    prove it actually trips, not just that it doesn't block normal use."""
+    tripped = False
+    for i in range(10):
+        r = client.post("/api/tenants/signup", json={
+            "slug": f"ratelimit-check-{i}", "org_name": f"Rate Limit Check {i}",
+            "admin_full_name": "Checker", "admin_email": f"checker{i}@ratelimit.example.com",
+            "admin_password": "checkerpass1",
+        })
+        if r.status_code == 429:
+            tripped = True
+            break
+        assert r.status_code == 200, r.text
+    assert tripped, "expected signup to eventually return 429 under a rapid burst"
