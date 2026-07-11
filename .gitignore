@@ -3,9 +3,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 backend/learnstack.db
-backend/uploads/
 backend/.env
 node_modules/
 dist/
 .env
 .env.local
+backups/

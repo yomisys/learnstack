@@ -35,6 +35,8 @@ services:
       LEARNSTACK_MINIO_ACCESS_KEY: ${LEARNSTACK_MINIO_ACCESS_KEY:-learnstack}
       LEARNSTACK_MINIO_SECRET_KEY: ${LEARNSTACK_MINIO_SECRET_KEY:-learnstack-dev-secret}
       LEARNSTACK_MINIO_BUCKET: learnstack-media
+    volumes:
+      - ./backups:/app/backups
     ports:
       - "8000:8000"
     depends_on:
